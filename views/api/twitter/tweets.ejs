@@ -1,0 +1,18 @@
+<h1>The Twitter Test</h1>
+<% _.each(result, function (value, index) { %>
+<div class="tweetContainer">
+    <div class="tweet" style="background-image: url(<%= value.user && value.user.profile_background_image_url %>)">
+        <div class="tweetText"><%= value.text %></div>
+        <% if (value.user) { %>
+        <div class="tweetUserProfile">
+            <img class="pull-left" src="<%= value.user.profile_image_url %>">
+            <span class="username"><%= value.user.name %></span>
+            <div class="pull-right">
+                <p class="friends">Friends: <%= value.user.friends_count %></p>
+                <p class="followers">Followers: <%= value.user.followers_count %></p>
+            </div>
+        </div>
+        <% } %>
+    </div>
+</div>
+<% }) %>

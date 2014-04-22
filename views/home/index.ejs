@@ -1,0 +1,6 @@
+<h1>The Twitter Test</h1>
+<ul>
+    <% _.each(_links, function (link, rel) { if (link.title) { %>
+        <li><a href="<%= link.href %>"><%= link.title %></a></li>
+    <% }}) %>
+</ul>
