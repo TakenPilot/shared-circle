@@ -46,10 +46,10 @@ module.exports = {
                     'oauth_timestamp': true,
                     'oauth_version': true
                 },
-                expected: {
-                    'oauth_token': true,
-                    'oauth_token_secret': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_token_secret'
+                ]
             },
             redirect: {
                 method: 'GET',
@@ -60,10 +60,10 @@ module.exports = {
                 }
             },
             receiveUserBack: {
-                expected: {
-                    'oauth_token': true,
-                    'oauth_verifier': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_verifier'
+                ]
             },
             fetchAccessToken: {
                 method: 'POST',
@@ -78,13 +78,13 @@ module.exports = {
                     'oauth_version': true,
                     'oauth_verifier': true
                 },
-                expected: {
-                    'oauth_token': true,
-                    'oauth_token_secret': true,
-                    'oauth_callback_confirmed': true,
-                    'user_id': true,
-                    'screen_name': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_token_secret',
+                    'oauth_callback_confirmed',
+                    'user_id',
+                    'screen_name'
+                ]
             },
             request: {
                 required: {
@@ -131,11 +131,11 @@ module.exports = {
                     'oauth_timestamp': true,
                     'oauth_version': true
                 },
-                expected: {
-                    'oauth_token': true,
-                    'oauth_token_secret': true,
-                    'oauth_callback_confirmed': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_token_secret',
+                    'oauth_callback_confirmed'
+                ]
             },
             redirect: {
                 method: 'GET',
@@ -146,10 +146,10 @@ module.exports = {
                 }
             },
             receiveUserBack: {
-                expected: {
-                    'oauth_token': true,
-                    'oauth_verifier': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_verifier'
+                ]
             },
             fetchAccessToken: {
                 method: 'POST',
@@ -164,10 +164,10 @@ module.exports = {
                     'oauth_version': true,
                     'oauth_verifier': true
                 },
-                expected: {
-                    'oauth_token': true,
-                    'oauth_token_secret': true
-                }
+                expected: [
+                    'oauth_token',
+                    'oauth_token_secret'
+                ]
             },
             request: {
                 required: {

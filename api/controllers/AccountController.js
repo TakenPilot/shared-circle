@@ -8,7 +8,8 @@
  */
 
 var patterns = require('../../knownApi'),
-    OAuth = require('../services/OAuth');
+    OAuth = require('../services/OAuth'),
+    Promise = require('bluebird');
 
 function getApiSteps (apiTarget) {
     return apiTarget && (patterns.oauth2[apiTarget] || patterns.oauth1[apiTarget]);
@@ -35,12 +36,15 @@ module.exports = {
 
         if (api) {
             data = _.pick(req.query, api.headerValues);
-            OAuth.getAuth(res, api, data, function (result) {
+            OAuth.getAuth(res, api, data).then(function (data) {
                 console.log('associate', 'result', result);
                 req.session[apiName] = {
                     requestToken: result.oauth_token,
                     requestTokenSecret: result.oauth_token_secret
                 };
+                return OAuth.directUserAway(res, api, data);
+            }).catch(function (message) {
+                res.send(500, message);
             });
         } else {
             res.send(400, 'Missing api target');
@@ -63,22 +67,18 @@ module.exports = {
         } else if (!req.session[apiName].requestTokenSecret) {
             res.send(400, 'Missing request token authorization');
         } else {
-            OAuth.acceptAuth(req, res, api, req.session[apiName].requestTokenSecret, function (err, result) {
-                if (err) {
-                  res.send(400, err);
-                } else {
-                  req.session[apiName].accessToken = result['oauth_token'];
-                  req.session[apiName].accessTokenSecret = result['oauth_token_secret'];
-                  delete result['oauth_token_secret'];
+            OAuth.acceptAuth(req, res, api, req.session[apiName].requestTokenSecret).then(function (result) {
+              req.session[apiName].accessToken = result['oauth_token'];
+              req.session[apiName].accessTokenSecret = result['oauth_token_secret'];
+              delete result['oauth_token_secret'];
 
-                  if (res.viewExists && !req.wantsJSON) {
-                    console.log('view', result);
-                    res.view(result);
-                  } else {
-                    console.log('json', result);
-                    res.json(200, result);
-                  }
-                }
+              if (res.viewExists && !req.wantsJSON) {
+                res.view(result);
+              } else {
+                res.json(200, result);
+              }
+            }).catch(function (error) {
+                res.send(400, error);
             });
         }
     }

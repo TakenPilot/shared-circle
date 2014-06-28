@@ -1,6 +1,7 @@
 var rest = require('restler'),
     _u = require('lodash'),
-    cryptomath = require('cryptomath');
+    cryptomath = require('cryptomath'),
+    Promise = require('bluebird');
 
 /**
  *
@@ -85,78 +86,72 @@ function convertFormToObj(message) {
  * @param step
  * @param auth
  * @param [data]
+ * @returns {Promise}
  */
 function sendRequest(api, step, auth, data) {
-    data = data || {};
-    var options,
-        uri = getUri(api, step),
-        method = step.method.toUpperCase(),
-        headers = {
-            'User-Agent': 'Attempt at an oauth client',
-            'Accept': step.accept || '*/*',
-            'Authorization': auth
+    new Promise(function (resolve, reject) {
+        data = data || {};
+        var options,
+            uri = getUri(api, step),
+            method = step.method.toUpperCase(),
+            headers = {
+                'User-Agent': 'Attempt at an oauth client',
+                'Accept': step.accept || '*/*',
+                'Authorization': auth
+            };
+
+        options = {
+            method: method,
+            headers: headers
         };
-
-    options = {
-        method: method,
-        headers: headers
-    };
-    data = cryptomath.sortObject(_.omit(data, api.headerValues));
-    if (method !== 'PUT' && method !== 'POST' && _.size(data)) {
-        uri += '?' + _.map(_.pairs(data), function (kv) { return kv.join('='); }).join('&')
-    } else {
-        options.data = data;
-    }
-
-    console.log('data Count', options.data, _.size(options.data));
-
-    console.log('sending', uri, method, headers, options.data);
-    return rest.request(uri, options)
-}
-
-function receiveUserBack (req, api) {
-    var param, properties = {},
-        step = api.receiveUserBack,
-        expected = step.expected && Object.keys(step.expected);
-
-    //take the user back, and get the oauth things that we're expecting from the header
-    _u.each(expected, function (key) {
-        param = req.param(key);
-        if (param) {
-            properties[key] = param;
+        data = cryptomath.sortObject(_.omit(data, api.headerValues));
+        if (method !== 'PUT' && method !== 'POST' && _.size(data)) {
+            uri += '?' + _.map(_.pairs(data), function (kv) { return kv.join('='); }).join('&')
         } else {
-            console.error('Missing expected parameter ' + key);
+            options.data = data;
         }
-    });
 
-    return properties;
+        rest.request(uri, options).on('success', function (message) {
+            resolve(convertFormToObj(message));
+        }).on('error', function (message) {
+            reject(message);
+        }).on('fail', function (message) {
+            reject(message);
+        });
+    });
 }
 
-function fetchAccessToken (api, properties, requestTokenSecret, callback) {
+/**
+ *
+ * @param req
+ * @param {{receiveUserBack}} api
+ * @returns {Promise}
+ */
+function receiveUserBack (req, api) {
+    return new Promise(function (resolve, reject) {
+        var param, properties = {},
+            step = api.receiveUserBack,
+            expected = step && step.expected;
+
+        //take the user back, and get the oauth things that we're expecting from the header
+        _u.each(expected, function (key) {
+            param = req.param(key);
+            if (param) {
+                properties[key] = param;
+            } else {
+                reject('Missing expected parameter ' + key);
+            }
+        });
+
+        resolve(properties);
+    });
+}
+
+function fetchAccessToken (api, properties, requestTokenSecret) {
     var step = api.fetchAccessToken,
         auth = getAuthorizationHeader(api, step, properties, requestTokenSecret);
 
-    return sendRequest(api, step, auth).on('success', function (message) {
-      console.log('message', message);
-      properties = convertFormToObj(message);
-      callback(null, properties);
-    }).on('error', function (message) {
-        console.log('error message', message);
-        callback(message);
-    }).on('fail', function (message) {
-        console.log('fail message', message);
-        callback(message);
-      });
-}
-
-function directUserAway (res, api, data) {
-    var step = api.redirect,
-        params = _u.map(Object.keys(step.required), function (key) {
-            return key + '=' + cryptomath.applyPercentEncoding(data[key] || api.defaultValues[key]);
-        }).join('&');
-
-    res.set({ 'Location': getUri(api, step) + '?' + params });
-    res.send(303);
+    return sendRequest(api, step, auth);
 }
 
 /**
@@ -197,20 +192,34 @@ module.exports = {
         var step = api.fetchRequestToken,
             auth = getAuthorizationHeader(api, step, data);
 
-        return sendRequest(api, step, auth).on('complete', function (message) {
-            var data = convertFormToObj(message);
+        return sendRequest(api, step, auth);
+    },
 
-            //give caller a chance to save any of the data they're interested in
-            callback(data);
+    directUserAway: function (res, api, data) {
+        return new Promise(function (resolve) {
+            var step = api.redirect,
+                params = _u.map(Object.keys(step.required), function (key) {
+                    return key + '=' + cryptomath.applyPercentEncoding(data[key] || api.defaultValues[key]);
+                }).join('&');
 
-            //show the user where to authenticate with a redirect
-            directUserAway(res, api, data);
+            res.set({ 'Location': getUri(api, step) + '?' + params });
+            res.send(303);
+            resolve();
         });
     },
 
-    acceptAuth: function (req, res, api, requestTokenSecret, callback) {
-        var result = receiveUserBack(req, api);
-        fetchAccessToken(api, result, requestTokenSecret, callback);
+    /**
+     *
+     * @param req
+     * @param res
+     * @param api
+     * @param requestTokenSecret
+     * @returns {Promise}
+     */
+    acceptAuth: function (req, res, api, requestTokenSecret) {
+        return receiveUserBack(req, api).then(function (result) {
+            return fetchAccessToken(api, result, requestTokenSecret);
+        });
     },
 
     request: function (api, step, data, accessTokenSecret) {

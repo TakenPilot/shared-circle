@@ -34,7 +34,7 @@ function request (req, res, apiName) {
         data = _u.contains(['POST', 'PUT'], route.method.toUpperCase()) ? req.body : req.query;
         data.oauth_token = req.session[apiName].accessToken;
         _.extend(data, query || {});
-        OAuth.request(api, step, data, accessTokenSecret).on('complete', function (result) {
+        OAuth.request(api, step, data, accessTokenSecret).then(function (result) {
             var view = api.apiViews[[route.params.namespace, route.params.method].join('/')];
             if (view && !res.wantsJSON) {
                 console.log('view', view, result);
@@ -43,6 +43,8 @@ function request (req, res, apiName) {
                 console.log('json', result);
                 res.send(result);
             }
+        }).catch(function (error) {
+            res.send(500, error);
         });
     }
 }
