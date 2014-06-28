@@ -1,70 +1,6 @@
 var rest = require('restler'),
     _u = require('lodash'),
-    crypto = require('crypto');
-
-/**
- * Create random string
- * @param {integer} [length]
- * @returns {string}
- */
-function createNonce(length) {
-    length = length || 20;
-    var digits = '';
-    for(var i = 0; i < length; i++) {
-        digits += Math.floor(Math.random() * 36).toString(36);
-    }
-    return digits;
-}
-
-/**
- * Timestamp in milliseconds
- * @returns {string}
- */
-function getTimestamp() {
-    return (Math.floor(_u.now()/1000)).toString();
-}
-
-/**
- * @param {integer} code
- * @param {string} char
- * @returns {boolean}
- */
-function isAllowedInRFC3986(code, char) {
-    return (code >= 0x30 && code <= 0x39) ||
-        (code >= 0x41 && code <= 0x5A) ||
-        (code >= 0x61 && code <= 0x7A) ||
-        _u.contains(['-','.','_','~'], char);
-}
-
-/**
- * The built-in URI encoding isn't standards compliant.
- * @param {string} str
- * @returns {string}
- */
-function applyPercentEncoding(str) {
-    var code;
-    return str && _u.reduce(str, function (str, char) {
-        code = char.charCodeAt(0);
-        if (isAllowedInRFC3986(code, char)) {
-            return str + char;
-        } else {
-            return str + '%' + code.toString(16).toUpperCase()
-        }
-    }, '');
-}
-
-/**
- * Sort an object's properties
- * Used in generating a consistent signature
- * @param {object} obj
- * @returns {object}
- */
-function sortObject(obj) {
-    return _u.reduce(Object.keys(obj).sort(), function (newObj, key) {
-        newObj[key] = obj[key];
-        return newObj;
-    }, {});
-}
+    cryptomath = require('cryptomath');
 
 /**
  *
@@ -75,27 +11,13 @@ function sortObject(obj) {
  * @param {string} [tokenSecret]
  */
 function createHMACSignature(api, step, params, consumerSecret, tokenSecret) {
-    var text, signingToken, parameterStr,
-        method = step.method;
-
-    parameterStr = applyPercentEncoding(_u.map(sortObject(params), function (value, key) {
-        return key + '=' + applyPercentEncoding(value);
-    }).join('&'));
-
-    console.log('parameterStr Count', params, _.size(params));
-
-    signingToken = applyPercentEncoding(consumerSecret) + '&';
-    if (tokenSecret) {
-        signingToken +=  applyPercentEncoding(tokenSecret)
-    }
-
-    text = [
-        method.toUpperCase(),
-        applyPercentEncoding(getUri(api, step)),
-        parameterStr
-    ].join('&');
-
-    return crypto.createHmac('sha1', signingToken).update(text).digest('base64');
+    return cryptomath.createHMACSignature(
+        step.method,
+        getUri(api, step),
+        params,
+        consumerSecret,
+        tokenSecret
+    );
 }
 
 /**
@@ -105,8 +27,8 @@ function createHMACSignature(api, step, params, consumerSecret, tokenSecret) {
  */
 function createAuthorizationHeaderFromParams(api, params) {
     params = _u.pick(params, api.headerValues);
-    return "OAuth " + _u.map(sortObject(params), function (value, key) {
-        return key + '="' + applyPercentEncoding(value) + '"';
+    return "OAuth " + _u.map(cryptomath.sortObject(params), function (value, key) {
+        return key + '="' + cryptomath.applyPercentEncoding(value) + '"';
     }).join(', ');
 }
 
@@ -125,8 +47,8 @@ function getFields(api, step, data) {
     _u.each(required, function (name) {
         switch(name) {
             case 'oauth_signature': break; //this needs to be added last, so ignore this value
-            case 'oauth_nonce': fields[name] = createNonce(); break;
-            case 'oauth_timestamp': fields[name] = getTimestamp(); break;
+            case 'oauth_nonce': fields[name] = cryptomath.createNonce(); break;
+            case 'oauth_timestamp': fields[name] = cryptomath.getTimestamp(); break;
             default:
                 if (lookup[name]) {
                     fields[name] = lookup[name];
@@ -170,7 +92,7 @@ function sendRequest(api, step, auth, data) {
         uri = getUri(api, step),
         method = step.method.toUpperCase(),
         headers = {
-            'User-Agent': 'Attempt at a twitter client',
+            'User-Agent': 'Attempt at an oauth client',
             'Accept': step.accept || '*/*',
             'Authorization': auth
         };
@@ -179,7 +101,7 @@ function sendRequest(api, step, auth, data) {
         method: method,
         headers: headers
     };
-    data = sortObject(_.omit(data, api.headerValues));
+    data = cryptomath.sortObject(_.omit(data, api.headerValues));
     if (method !== 'PUT' && method !== 'POST' && _.size(data)) {
         uri += '?' + _.map(_.pairs(data), function (kv) { return kv.join('='); }).join('&')
     } else {
@@ -230,7 +152,7 @@ function fetchAccessToken (api, properties, requestTokenSecret, callback) {
 function directUserAway (res, api, data) {
     var step = api.directUserAway,
         params = _u.map(Object.keys(step.required), function (key) {
-            return key + '=' + applyPercentEncoding(data[key] || api.defaultValues[key]);
+            return key + '=' + cryptomath.applyPercentEncoding(data[key] || api.defaultValues[key]);
         }).join('&');
 
     res.set({ 'Location': getUri(api, step) + '?' + params });
@@ -238,7 +160,6 @@ function directUserAway (res, api, data) {
 }
 
 /**
- *
  * @param api
  * @param step
  * @param [data]

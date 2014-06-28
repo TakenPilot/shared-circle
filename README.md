@@ -1,3 +1,3 @@
-# singly
+# Shared Circle
 
-Yo Dawg I heard you used OAuth in your Test, so I put your Documentation somewhere else.
+Share OAuth permissions from logged-in users and pre-authorized devices.
