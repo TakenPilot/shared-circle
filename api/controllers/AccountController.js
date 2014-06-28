@@ -35,7 +35,7 @@ module.exports = {
 
         if (api) {
             data = _.pick(req.query, api.headerValues);
-            OAuth.getAuth(req, res, api, data, function (result) {
+            OAuth.getAuth(res, api, data, function (result) {
                 console.log('associate', 'result', result);
                 req.session[apiName] = {
                     requestToken: result.oauth_token,

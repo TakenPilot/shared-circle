@@ -150,7 +150,7 @@ function fetchAccessToken (api, properties, requestTokenSecret, callback) {
 }
 
 function directUserAway (res, api, data) {
-    var step = api.directUserAway,
+    var step = api.redirect,
         params = _u.map(Object.keys(step.required), function (key) {
             return key + '=' + cryptomath.applyPercentEncoding(data[key] || api.defaultValues[key]);
         }).join('&');
@@ -178,15 +178,32 @@ function getAuthorizationHeader(api, step, data, tokenSecret) {
 }
 
 module.exports = {
-    getAuth: function (req, res, api, data, callback) {
+    /**
+     * Get an OAuth1.0a authentication token from a service based on an api template.
+     *
+     * The API template must have a fetchRequestToken configuration object with:
+     *   {'GET'|'POST'} method
+     *   {string} uri
+     *   {object} required  Each property of this object must be given from the user of the service, otherwise error
+     *   {object} expected  Each property of this object must be given by the response, otherwise error
+     *
+     *
+     * @param res
+     * @param {{fetchRequestToken: {}}} api
+     * @param data
+     * @param callback
+     */
+    getAuth: function (res, api, data, callback) {
         var step = api.fetchRequestToken,
             auth = getAuthorizationHeader(api, step, data);
 
-        sendRequest(api, step, auth).on('complete', function (message) {
+        return sendRequest(api, step, auth).on('complete', function (message) {
             var data = convertFormToObj(message);
 
+            //give caller a chance to save any of the data they're interested in
             callback(data);
 
+            //show the user where to authenticate with a redirect
             directUserAway(res, api, data);
         });
     },

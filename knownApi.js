@@ -51,7 +51,7 @@ module.exports = {
                     'oauth_token_secret': true
                 }
             },
-            directUserAway: {
+            redirect: {
                 method: 'GET',
                 uri: 'oauth/authorize',
                 required: {
@@ -137,7 +137,7 @@ module.exports = {
                     'oauth_callback_confirmed': true
                 }
             },
-            directUserAway: {
+            redirect: {
                 method: 'GET',
                 uri: 'https://www.fitbit.com/oauth/authorize',
                 required: {
